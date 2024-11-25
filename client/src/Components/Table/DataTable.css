@@ -1,0 +1,27 @@
+.products-section {
+    display: inline-block;
+    margin-top: 2em;
+    width: 60%;
+    margin-left: 1em;
+}
+
+.cart-interface {
+    width: 25%;
+    display: inline-block;
+    vertical-align: top;
+    margin-top: 2em;
+}
+
+.cart-interface {
+    width: 30%;
+    height: 45%;
+}
+
+.cart-products {
+    width: 25%;
+    height: 40%;
+}
+
+#item-list {
+    display: inline-block;
+}
