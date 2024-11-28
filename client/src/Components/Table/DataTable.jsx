@@ -3,29 +3,62 @@ import './DataTable.css'
 
 function DataTable() {
     const [data, setData] = useState([]);
+    const [available, setAvailable] = useState({});
     const [loading, setLoading] = useState(true);
 
     var [cartItems, setCartItems] = useState([]);
     var [itemQuantities, setItemQuantities] = useState([]);
+    var [amount, setAmount] = useState(0.0);
+    var [weight, setWeight] = useState(0.0);
+    var [shippingRanges, setShippingRanges] = useState([]);
+    var [shippingCost, setShippingCost] = useState(0.0);
+    var [total, setTotal] = useState(0.0);
+
+    // Retrieving the quantities
+    useEffect(() => {
+        // Initialize an empty object
+        const tempAvailable = {};
+    
+        // Replace this block of code with the fetch lines of code
+        // Populate the object with keys from 1 to 149 and random values between 0 and 50
+        for (let i = 1; i <= 149; i++) {
+            tempAvailable[i] = Math.floor(Math.random() * 51); // Generates a random integer between 0 and 50
+        }
+    
+        // Update the available state once
+        setAvailable(tempAvailable);
+    }, []); // The empty dependency array ensures this runs only once
+    
+    // Retrieving the Shipping details
+    useEffect(() => {
+        // Shipping table is called "Brackets"
+        const tempShippingRanges = [
+            { "id": 1, "low": 0, "high": 5, "price": 0.0 },
+            { "id": 2, "low": 5, "high": 10, "price": 5.0 },
+            { "id": 3, "low": 10, "high": 15, "price": 10.0 },
+            { "id": 4, "low": 15, "high": 20, "price": 15.0}
+        ];
+
+        setShippingRanges(tempShippingRanges);
+    }, []);
+
+    // Function to determine the shipping price
+    function calculateShipping(weight) {
+        for (const rate of shippingRanges) {
+            if (weight >= rate.low && weight < rate.high) {
+                return rate.price;
+            }
+        }
+        return 0; // Default price if no range matches
+    }
 
     function addToCart(item) {
-        /*
-        const table = document.getElementById("products");
-        const row = table.rows[item.number];
-        const cell = row.cells[6];
-        const input = cell.querySelector("#quantity"); // Correctly fetch the input element
-        */
         const input = document.getElementById("quantity" + item.number);
     
-        console.log(input); // This should now log the input element
-        console.log(Number(input.value)); // If you want to access the value of the input
-        console.log(typeof Number(input.value));
         var inputValue = Number(input.value.trim());
 
         // Only take care of adding additional items to cart if the quantity is greater than zero
         if (inputValue !== "" || inputValue > 0) {
-            // var is function-scoped - accessible within the entire function it was declared in
-            // let is block-scoped - within a set of curly braces it was declared in
             var tempCartItems = cartItems;
             var tempItemQuantities = itemQuantities;
             if (tempCartItems.length === 0) {
@@ -39,19 +72,13 @@ function DataTable() {
 
                 setCartItems(tempCartItems);
                 setItemQuantities(tempItemQuantities);
-
-                console.log("tempCartItems: " + tempCartItems);
-                console.log("tempItemQuantities: " + tempItemQuantities);
             } else if (tempCartItems.length > 0) {
                 /*
                     There are already items in the cart
                 */
                 let itemExists = false;
                 for (let index = 0; index < tempCartItems.length; index++) {
-                    console.log("The product number we are looking for is: " + item.number);
-                    console.log("The current item we are looking at is: " + tempCartItems[index]);
                     if (item.number === tempCartItems[index]) {
-                        console.log("It is a match");
                         tempItemQuantities[index] = tempItemQuantities[index] + inputValue;
                         setItemQuantities(tempItemQuantities);
                         itemExists = true;
@@ -65,9 +92,6 @@ function DataTable() {
 
                     setCartItems(tempCartItems);
                     setItemQuantities(tempItemQuantities);
-
-                    console.log("tempCartItems: " + tempCartItems);
-                    console.log("tempItemQuantities: " + tempItemQuantities);
                 }
             }
 
@@ -76,16 +100,35 @@ function DataTable() {
         }
     }
 
+    function removeFromCart(product) {
+        let indexToRemove = cartItems.indexOf(product.number);
+        cartItems.splice(indexToRemove, 1); // only remove the respective item
+        itemQuantities.splice(indexToRemove, 1); // only remove the respective quantity
+
+        updateCart();
+    }
+
     function updateCart() {
         const numItemsMsg = document.getElementById("num-items-msg");
         const itemList = document.getElementById("item-list"); // Table body
-        //console.log(itemList);
+
+        itemList.innerHTML = ""; // clearing all rows from the list of items shown in cart
+
+        setAmount(0.0);
+        setWeight(0.0);
+        setShippingCost(0.0);
+        setTotal(0.0);
+
+        let detailsSection = document.getElementById("details");
 
         if (cartItems.length === 0) {
             numItemsMsg.textContent = "You have " + cartItems.length + " items in your cart.";
+            detailsSection.style.display = "none";
         } else if (cartItems.length === 1) {
             // there is one item in the cart
             numItemsMsg.textContent = "You have " + cartItems.length + " item in your cart.";
+
+            detailsSection.style.display = "block";
 
             let itemId = cartItems[0]; // since there is only one item in the cart
             let product = data.find(item => {
@@ -99,8 +142,8 @@ function DataTable() {
             const text = document.createElement("div");
             text.style = "display: inline-block"
             let descText = document.createTextNode(product.description);
-            let weightText = document.createTextNode("Weight: " + product.weight);
-            let priceText = document.createTextNode("Price: " + product.price);
+            let weightText = document.createTextNode("Weight: " + product.weight + "lbs");
+            let priceText = document.createTextNode("Price: $" + product.price);
             let quantityText = document.createTextNode("Qty: " + itemQuantities[0]);
             text.appendChild(descText);
             text.appendChild(document.createElement("br"));
@@ -110,41 +153,100 @@ function DataTable() {
             text.appendChild(document.createElement("br"));
             text.appendChild(quantityText);
 
-            // Add code for a remove button
-            // Add logic for processing the removal of that item
+            let removeBtn = document.createElement("button")
+            removeBtn.textContent = "Remove";
+            removeBtn.onclick = function () {
+                removeFromCart(product);
+            };
+
+            let buttonContainer = document.createElement("div");
+            buttonContainer.className = "center-vertically";
+            buttonContainer.appendChild(removeBtn);
 
             let newRow = itemList.insertRow();
-            let newCell = newRow.insertCell();
 
-            newCell.appendChild(img);
-            newCell.appendChild(text);
+            let newCellLeft = newRow.insertCell();
+            newCellLeft.appendChild(img);
+            newCellLeft.appendChild(text);
+
+            let newCellRight = newRow.insertCell();
+            newCellRight.appendChild(buttonContainer);
+
+            // Updating the Cart information
+            let tempAmount = product.price * itemQuantities[0];
+            let tempWeight = product.weight * itemQuantities[0]; // use this for calculating the shipping cost
+            let tempShippingCost = calculateShipping(tempWeight); // will need to fix this once Shipping db table is ready
+            let tempTotal = tempAmount + tempShippingCost;
+
+            setAmount(tempAmount);
+            setWeight(tempWeight);
+            setShippingCost(tempShippingCost);
+            setTotal(tempTotal);
         } else if (cartItems.length > 1) {
             numItemsMsg.textContent = "You have " + cartItems.length + " items in your cart.";
 
-            itemList.innerHTML = ""; // clearing all rows from the list of items shown in cart
+            detailsSection.style.display = "block";
 
+            // Updating the Cart information
+            let tempAmount = 0.0;
+            let tempWeight = 0.0; // use this for calculating the shipping cost
+            let tempShippingCost = 0.0; // will need to fix this once Shipping db table is ready
+            let tempTotal = 0.0;
             for (let i = 0; i < cartItems.length; i++) {
-                let newRow = itemList.insertRow();
-                let newCell = newRow.insertCell();
-                let itemId = cartItems[i]; // since there is only one item in the cart
+                let itemId = cartItems[i];
                 let product = data.find(item => {
                     return item.number === itemId;
                 })
-                //let qty = itemQuantities[0]; // since there is only one item in the cart
+
+                let img = document.createElement("img");
+                img.src = product.pictureURL;
+                img.style = "display: inline-block";
+
+                const text = document.createElement("div");
+                text.style = "display: inline-block"
                 let descText = document.createTextNode(product.description);
-                let weightText = document.createTextNode("Weight: " + product.weight);
-                let priceText = document.createTextNode("Price: " + product.price);
+                let weightText = document.createTextNode("Weight: " + product.weight + "lbs");
+                let priceText = document.createTextNode("Price: $" + product.price);
                 let quantityText = document.createTextNode("Qty: " + itemQuantities[i]);
-                newCell.appendChild(descText);
-                newCell.appendChild(document.createElement("br"));
-                newCell.appendChild(weightText);
-                newCell.appendChild(document.createElement("br"));
-                newCell.appendChild(priceText);
-                newCell.appendChild(document.createElement("br"));
-                newCell.appendChild(quantityText);
+                text.appendChild(descText);
+                text.appendChild(document.createElement("br"));
+                text.appendChild(weightText);
+                text.appendChild(document.createElement("br"));
+                text.appendChild(priceText);
+                text.appendChild(document.createElement("br"));
+                text.appendChild(quantityText);
+
+                let removeBtn = document.createElement("button")
+                removeBtn.textContent = "Remove";
+                removeBtn.onclick = function () {
+                    removeFromCart(product);
+                };
+
+                let buttonContainer = document.createElement("div");
+                buttonContainer.className = "center-vertically";
+                buttonContainer.appendChild(removeBtn);
+
+                let newRow = itemList.insertRow();
+
+                let newCellLeft = newRow.insertCell();
+                newCellLeft.appendChild(img);
+                newCellLeft.appendChild(text);
+
+                let newCellRight = newRow.insertCell();
+                newCellRight.appendChild(buttonContainer);
+
+                // Updating the Cart information
+                tempAmount += product.price * itemQuantities[i];
+                tempWeight += product.weight * itemQuantities[i]; // use this for calculating the shipping cost
             }
+            tempShippingCost = calculateShipping(tempWeight); // will need to fix this once Shipping db table is ready
+            tempTotal = tempAmount + tempShippingCost;
+
+            setAmount(tempAmount);
+            setWeight(tempWeight);
+            setShippingCost(tempShippingCost);
+            setTotal(tempTotal);
         }
-        //console.log(numItemsMsg.textContent);
     }
 
     const handlePaymentSubmit = async (event) => {
@@ -156,8 +258,10 @@ function DataTable() {
             address: document.getElementById('address-field').value,
             creditCard: document.getElementById('cc-field').value,
             expiration: document.getElementById('exp-field').value,
-            cartItems,
-            itemQuantities
+            orderItems: cartItems,
+            quantities: itemQuantities,
+            amount: total,
+            shipping: shippingCost
         };
 
         if (!payload.name || !payload.email || !payload.address || !payload.creditCard || !payload.expiration) {
@@ -166,7 +270,7 @@ function DataTable() {
         }
     
         try {
-            const response = await fetch('http://localhost:5000/api/pay', {
+            const response = await fetch('http://localhost:5000/api/shop/pay', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -188,7 +292,7 @@ function DataTable() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/data/shop');
+                const response = await fetch('http://localhost:5000/api/shop/items');
                 const result = await response.json();
                 setData(result);
             } catch (error) {
@@ -206,7 +310,7 @@ function DataTable() {
     }
 
     return (
-        <div>
+        <div className='container'>
             <div className='products-section'>
                 <h1 className='products-title'>Products</h1>
                 <table id='products'>
@@ -230,14 +334,14 @@ function DataTable() {
                                 <td>{item.description}</td>
                                 <td>{"$" + (item.price).toFixed(2)}</td>
                                 <td>{item.weight}</td>
-                                <td>0</td>
+                                <td>{available[item.number]}</td>
                                 <td>
                                     <div id='qty-col' style={{position: "relative"}}>
                                         <p style={{display: "inline-flex"}}>Quantity: </p>
-                                        <input id={"quantity"+item.number} type='number' min='0' placeholder='0' style={{display: "inline-flex", width: "5em"}} />
+                                        <input id={"quantity" + item.number} type="number" min="0" placeholder="0" style={{ display: "inline-flex", width: "5em" }} readOnly={available[item.number] === 0 ? true : false} />
                                     </div>  
                                 </td>
-                                <td><button type='button' onClick={() => addToCart(item)}>Add to Cart</button></td>
+                                <td><button type='button' onClick={() => addToCart(item)} disabled={available[item.number] === 0 ? true : false}>Add to Cart</button></td>
                             </tr>
                         ))}
                     </tbody>
@@ -248,99 +352,101 @@ function DataTable() {
                 <h1>Cart</h1>
                 <p id='num-items-msg'>You have {cartItems.length} items in your cart.</p>
                 <br/>
-                <table id='cart-products'>
-                    <tbody id='item-list'>
-                    </tbody>
-                </table>
-                <br/>
-                <table>
-                    <tbody>
-                        <tr>
-                            <td>
-                                <b>Amount: </b>
-                            </td>
-                            <td>
-                                <p id='amount'>$0.00</p>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>
-                                <b>Weight: </b>
-                            </td>
-                            <td>
-                                <p id='weight'>0.0lbs</p>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>
-                                <b>Shipping: </b>
-                            </td>
-                            <td>
-                                <p id='shipping'>$0.00</p>
-                            </td>
-                        </tr>
-
-                        <tr>
-                            <td>
-                                <b>Total: </b>
-                            </td>
-                            <td>
-                                <p id='total'>$0.00</p>
-                            </td>
-                        </tr>
-                    </tbody>
-                </table>
-                <br/>
-                <h3>Billing Information</h3>
-                <form onSubmit={handlePaymentSubmit}>
-                    <table>
+                <div id='details'>
+                    <table id='cart-products'>
+                        <tbody id='item-list'>
+                        </tbody>
+                    </table>
+                    <br/>
+                    <table className='cart-info'>
                         <tbody>
                             <tr>
                                 <td>
-                                    <label>Name: </label>
+                                    <b>Amount: </b>
                                 </td>
                                 <td>
-                                    <input id='name-field' ></input>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td>
-                                    <label>Email: </label>
-                                </td>
-                                <td>
-                                    <input id='email-field' type='email'></input>
+                                    <p id='amount'>{"$" + (amount).toFixed(2)}</p>
                                 </td>
                             </tr>
+
                             <tr>
                                 <td>
-                                    <label>Address</label>
+                                    <b>Weight: </b>
                                 </td>
                                 <td>
-                                    <input id='address-field'></input>
+                                    <p id='weight'>{(weight) + "lbs"}</p>
                                 </td>
                             </tr>
+
                             <tr>
                                 <td>
-                                    <label >Credit Card Number: </label>
+                                    <b>Shipping: </b>
                                 </td>
                                 <td>
-                                    <input id='cc-field'></input>
+                                    <p id='shipping'>{"$" + (shippingCost).toFixed(2)}</p>
                                 </td>
                             </tr>
+
                             <tr>
                                 <td>
-                                    <label>Expiration Date: </label>
+                                    <b>Total: </b>
                                 </td>
                                 <td>
-                                    <input id='exp-field'></input>
+                                    <p id='total'>{"$" + (total).toFixed(2)}</p>
                                 </td>
                             </tr>
                         </tbody>
                     </table>
-                    <input type="submit" value="Submit Payment"/>
-                </form>
+                    <br/>
+                    <h3>Billing Information</h3>
+                    <form onSubmit={handlePaymentSubmit}>
+                        <table className='cart-info'>
+                            <tbody>
+                                <tr>
+                                    <td>
+                                        <label>Name: </label>
+                                    </td>
+                                    <td>
+                                        <input id='name-field' ></input>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label>Email: </label>
+                                    </td>
+                                    <td>
+                                        <input id='email-field' type='email'></input>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label>Address: </label>
+                                    </td>
+                                    <td>
+                                        <input id='address-field'></input>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label >Credit Card Number: </label>
+                                    </td>
+                                    <td>
+                                        <input id='cc-field'></input>
+                                    </td>
+                                </tr>
+                                <tr>
+                                    <td>
+                                        <label>Expiration Date: </label>
+                                    </td>
+                                    <td>
+                                        <input id='exp-field'></input>
+                                    </td>
+                                </tr>
+                            </tbody>
+                        </table>
+                        <input type="submit" value="Submit Payment"/>
+                    </form>
+                </div>
             </div>
         </div>    
     );
