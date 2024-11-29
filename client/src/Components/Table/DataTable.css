@@ -75,3 +75,8 @@ body {
 #details {
     display: none;
 }
+
+.cart-item-cells {
+    display: "inline-block";
+    padding: "1em"
+}

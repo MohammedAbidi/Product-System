@@ -33,6 +33,16 @@ app.get("/api/shop/items", async (req, res) => {
 // Sending a dictionary of the available quantities for each part
 app.get("/api/shop/quantities", async (req, res) => {
     console.log("Sending available quantities for each item");
+
+    let output = {};
+
+    // Mock - randomly generating a list of available quantities for all of the objects
+    for (let i = 1; i <= 149; i++) {
+        output[i] = Math.floor(Math.random() * 51); // Generates a random integer between 0 and 50
+    }
+
+    console.log(output);
+    res.json(output);
 });
 
 /*
@@ -94,13 +104,14 @@ app.post('/api/shop/pay', async (req, res) => {
     */
     const output = {
         orderId: 12,
-        amount: 221.56,
+        amount: paymentInfo.amount,
         authorization: 14444,
-        name: "John Doe",
-        email: "jdoe@pizza.net"
+        name: paymentInfo.name,
+        email: paymentInfo.email
     };
 
-    res.status(200).json(output);
+    res.status(200).json(output); // only for testing purposes for the Dialog window in frontend
+    //res.status(402).send({"status":"DECLINED"}); // only for testing purposes for the Dialog window in frontend
 });
 
 // Sending a JSON array of orders - need to find a way to handle combining Customers, Orders, and Order_Items data together
@@ -122,6 +133,14 @@ app.post("/api/rcv/available", async (req, res) => {
 // Sending all of the rows from the backet table
 app.get("/api/admin/brackets", async (req, res) => {
     console.log("Sending the bracket table's rows");
+    const output = [
+        { "id": 1, "low": 0, "high": 5, "price": 0.0 },
+        { "id": 2, "low": 5, "high": 10, "price": 5.0 },
+        { "id": 3, "low": 10, "high": 15, "price": 10.0 },
+        { "id": 4, "low": 15, "high": 20, "price": 15.0}
+    ];
+
+    res.json(output);
 });
 
 // Adding and updating rows in brackets table for new ranges
