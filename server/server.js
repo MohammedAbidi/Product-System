@@ -191,6 +191,10 @@ app.post("/api/ff/complete", async (req, res) => {
 // Updating a row from the quantity table to reflect the item's new available quantity 
 app.post("/api/rcv/available", async (req, res) => {
     console.log("Updating a row from the quantity table to reflect the new quantity on hand");
+
+    let rowData = req.body;
+
+    quantities[rowData.id] = rowData.newQty;
 });
 
 // Sending all of the rows from the backet table

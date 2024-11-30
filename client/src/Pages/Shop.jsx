@@ -6,16 +6,9 @@ import DataTable from '../Components/Table/DataTable'
 
 const Shop = () => {
     return (
-        /*
         <div>
-            <Hero/>
-        </div>*/
-        <div>
-            <div>
-                <DataTable/>
-            </div>
+            <DataTable/>
         </div>
-        
     )
 }
 
