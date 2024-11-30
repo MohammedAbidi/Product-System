@@ -279,6 +279,7 @@ function DataTable() {
                 <table id='products'>
                     <thead>
                         <tr>
+                            <th>Number</th>
                             <th>PictureURL</th>
                             <th>Description</th>
                             <th>Price</th>
@@ -289,6 +290,9 @@ function DataTable() {
                     <tbody>
                         {data.map((item) => (
                             <tr key={item.number}>
+                                <td>
+                                    {item.number}
+                                </td>
                                 <td>
                                     <img src={item.pictureURL} alt={item.description} />
                                 </td>

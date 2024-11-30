@@ -14,6 +14,59 @@ const legacyPool = mariadb.createPool({
     database: 'csci467',
 });
 
+var quantities = {};
+// Mock - randomly generating a list of available quantities for all of the objects
+for (let i = 1; i <= 149; i++) {
+    quantities[i] = Math.floor(Math.random() * 51); // Generates a random integer between 0 and 50
+}
+
+var orders = [
+    {
+        id: 1,
+        items: {
+            1: 2,
+            2: 5
+        },
+        shipping: 10.0,
+        name: "John Doe",
+        address: "100 Apple St. Rock, WI 60000",
+        email: "jdoe@pizza.com",
+        orderDate: 1732856405,
+        status: "Open"
+    },
+    {
+        id: 2,
+        items: {
+            1: 2
+        },
+        shipping: 10.0,
+        name: "Jane Doe",
+        address: "102 Apple St. Rock, WI 60000",
+        email: "janedoe@pizza.com",
+        orderDate: 1732856405,
+        status: "Open"
+    },
+    {
+        id: 3,
+        items: {
+            2: 5
+        },
+        shipping: 10.0,
+        name: "Bob Roberts",
+        address: "1010 Jane Ave. Pearl, MI 66000",
+        email: "bbob@boba.com",
+        orderDate: 1732856589,
+        status: "Open"
+    }
+];
+
+var brackets = [
+    { "id": 1, "low": 0, "high": 5, "price": 0.0 },
+    { "id": 2, "low": 5, "high": 10, "price": 5.0 },
+    { "id": 3, "low": 10, "high": 15, "price": 10.0 },
+    { "id": 4, "low": 15, "high": 20, "price": 15.0}
+];
+
 // Sending the parts (excluding the available quantity) from the legacy DB
 app.get("/api/shop/items", async (req, res) => {
     let connection;
@@ -34,15 +87,7 @@ app.get("/api/shop/items", async (req, res) => {
 app.get("/api/shop/quantities", async (req, res) => {
     console.log("Sending available quantities for each item");
 
-    let output = {};
-
-    // Mock - randomly generating a list of available quantities for all of the objects
-    for (let i = 1; i <= 149; i++) {
-        output[i] = Math.floor(Math.random() * 51); // Generates a random integer between 0 and 50
-    }
-
-    console.log(output);
-    res.json(output);
+    res.json(quantities);
 });
 
 /*
@@ -117,12 +162,30 @@ app.post('/api/shop/pay', async (req, res) => {
 // Sending a JSON array of orders - need to find a way to handle combining Customers, Orders, and Order_Items data together
 app.get("/api/orders", async (req, res) => {
     console.log("Sending the list of orders");
+
+    res.json(orders);
 });
 
 // Updating the order to be marked as filled and, based on the filled order's items,
-// deducting each ordered item's available quantity by 1
+// deducting each ordered item's available quantity by the quantity the customer purchased
 app.post("/api/ff/complete", async (req, res) => {
     console.log("Updating the order row and item available row");
+
+    let completedOrder = req.body;
+    //console.log(completedOrder);
+
+    let updateOrder = orders.find((order) => order.id === completedOrder.id);
+    //console.log(updateOrder);
+    updateOrder.status = "Filled";
+
+    let itemsDict = updateOrder.items;
+    console.log(itemsDict);
+    for (const pId in itemsDict) {
+        console.log(pId);
+        console.log(quantities[pId]);
+        console.log(itemsDict[pId]);
+        quantities[pId] = quantities[pId] - itemsDict[pId];
+    }
 });
 
 // Updating a row from the quantity table to reflect the item's new available quantity 
@@ -133,14 +196,8 @@ app.post("/api/rcv/available", async (req, res) => {
 // Sending all of the rows from the backet table
 app.get("/api/admin/brackets", async (req, res) => {
     console.log("Sending the bracket table's rows");
-    const output = [
-        { "id": 1, "low": 0, "high": 5, "price": 0.0 },
-        { "id": 2, "low": 5, "high": 10, "price": 5.0 },
-        { "id": 3, "low": 10, "high": 15, "price": 10.0 },
-        { "id": 4, "low": 15, "high": 20, "price": 15.0}
-    ];
 
-    res.json(output);
+    res.json(brackets);
 });
 
 // Adding and updating rows in brackets table for new ranges
