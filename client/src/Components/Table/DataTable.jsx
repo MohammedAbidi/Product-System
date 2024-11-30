@@ -284,7 +284,7 @@ function DataTable() {
                             <th>Description</th>
                             <th>Price</th>
                             <th>Weight</th>
-                            <th>Available</th>
+                            <th>Available Qty</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -298,7 +298,7 @@ function DataTable() {
                                 </td>
                                 <td>{item.description}</td>
                                 <td>{"$" + (item.price).toFixed(2)}</td>
-                                <td>{item.weight}</td>
+                                <td>{item.weight + "lbs"}</td>
                                 <td>{available[item.number]}</td>
                                 <td>
                                     <div id='qty-col' style={{position: "relative"}}>

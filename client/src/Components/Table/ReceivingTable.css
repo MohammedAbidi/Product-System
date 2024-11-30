@@ -1,0 +1,81 @@
+body {
+    margin: 0;
+}
+
+.container {
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 25px;
+    gap: 40px;
+}
+
+.products-section {
+    display: inline-block;
+    margin-top: 2em;
+    width: 65%;
+}
+
+.cart-interface {
+    width: 35%;
+    height: 45%;
+    display: inline-block;
+    vertical-align: top;
+    margin-top: 2em;
+    position: sticky;
+    top: 25px;
+}
+
+.cart-products {
+    width: 25%;
+    height: 40%;
+}
+
+#item-list {
+    display: inline-block;
+}
+
+.center-vertically {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.products-section table {
+    width: 100%; /* Use the full width of the parent container */
+    border-collapse: collapse;
+    table-layout: fixed; /* Ensure consistent column sizing */
+}
+
+.cart-info {
+    width: 50%; /* Use the full width of the parent container */
+    border-collapse: collapse;
+    table-layout: fixed; /* Ensure consistent column sizing */
+}
+
+#item-list {
+    width: 100%; /* Ensure item-list spans the full width */
+}
+
+.cart-interface img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+.products-section, .cart-interface {
+    overflow-x: auto; /* Allow horizontal scrolling for narrower screens */
+}
+
+#products {
+    text-align: center;
+}
+
+#details {
+    display: none;
+}
+
+.cart-item-cells {
+    display: "inline-block";
+    padding: "1em"
+}
