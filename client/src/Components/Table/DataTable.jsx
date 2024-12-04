@@ -3,6 +3,9 @@ import ReactDOM from "react-dom";
 import { Button, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle } from "@mui/material";
 import './DataTable.css'
 
+const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
+// const WEBSITE = "http://localhost:5000";
+
 function DataTable() {
     const [data, setData] = useState([]);
     const [available, setAvailable] = useState({});
@@ -86,7 +89,7 @@ function DataTable() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/shop/quantities');
+                const response = await fetch(WEBSITE + '/api/shop/quantities');
                 const result = await response.json();
                 setAvailable(result);
             } catch (error) {
@@ -104,7 +107,7 @@ function DataTable() {
         // Shipping table is called "Brackets"
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/admin/brackets');
+                const response = await fetch(WEBSITE + '/api/admin/brackets');
                 const result = await response.json();
                 setShippingRanges(result);
             } catch (error) {
@@ -229,7 +232,7 @@ function DataTable() {
         }
     
         try {
-            const response = await fetch('http://localhost:5000/api/shop/pay', {
+            const response = await fetch(WEBSITE + '/api/shop/pay', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -255,7 +258,7 @@ function DataTable() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/shop/items');
+                const response = await fetch(WEBSITE + '/api/shop/items');
                 const result = await response.json();
                 setData(result);
             } catch (error) {
