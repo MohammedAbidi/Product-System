@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from "react-dom";
 import './ReceivingTable.css'
 
+const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
+// const WEBSITE = "http://localhost:5000";
+
 function DataTable() {
     const [data, setData] = useState([]);
     const [available, setAvailable] = useState({});
@@ -10,7 +13,7 @@ function DataTable() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/shop/quantities');
+                const response = await fetch(WEBSITE + '/api/shop/quantities');
                 const result = await response.json();
                 setAvailable(result);
             } catch (error) {
@@ -26,7 +29,7 @@ function DataTable() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/shop/items');
+                const response = await fetch(WEBSITE + '/api/shop/items');
                 const result = await response.json();
                 setData(result);
             } catch (error) {
@@ -59,7 +62,7 @@ function DataTable() {
             };
 
             try {
-                const response = await fetch('http://localhost:5000/api/rcv/available', {
+                const response = await fetch(WEBSITE + '/api/rcv/available', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
