@@ -4,6 +4,9 @@ import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Dialog
 import "./Fulfillment.css"
 import close_icon from "../Components/Assets/close_24dp.png"
 
+const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
+// const WEBSITE = "http://localhost:5000";
+
 function Fulfillment() {
     const [data, setData] = useState([]);
     const [amount, setAmount] = useState([]);
@@ -28,7 +31,7 @@ function Fulfillment() {
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/shop/items');
+                const response = await fetch(WEBSITE + '/api/shop/items');
                 const result = await response.json();
                 setData(result);
             } catch (error) {
@@ -40,7 +43,7 @@ function Fulfillment() {
     }, []);*/
     const fetchData = async () => {
         try {
-            const response = await fetch('http://localhost:5000/api/shop/items');
+            const response = await fetch(WEBSITE + '/api/shop/items');
             const result = await response.json();
             setData(result);
         } catch (error) {
@@ -62,7 +65,7 @@ function Fulfillment() {
     const fetchOrders = async () => {
         // For "items", it is a dictionary where the key is the product number and the value is the available quantity
         try {
-            const response = await fetch('http://localhost:5000/api/orders');
+            const response = await fetch(WEBSITE + '/api/orders');
             const result = await response.json();
             setOpenOrders(result.filter((order) => order.status === "Open"));
         } catch (error) {
@@ -188,7 +191,7 @@ function Fulfillment() {
         };
 
         try {
-            const response = await fetch('http://localhost:5000/api/ff/complete', {
+            const response = await fetch(WEBSITE + '/api/ff/complete', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
