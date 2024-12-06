@@ -3,9 +3,10 @@
 /////////////
 const SECRETS = require("./secrets");
 
-const mariadb = require('mariadb');
-const express = require('express');
-const cors = require('cors');
+const pg = require("pg")
+const mariadb = require("mariadb");
+const express = require("express");
+const cors = require("cors");
 
 const app = express();
 app.use(cors());
@@ -23,244 +24,223 @@ const legacyPool = mariadb.createPool({
     database: SECRETS.LEGACY_DATABASE,
 });
 
-// Setup local database (localPool)
+// Setup local database (pool)
 let DB_INFO = {
-    host: SECRETS.LOCAL_HOST,
-    user: SECRETS.LOCAL_USER,
-    password: SECRETS.LOCAL_PASSWORD
-//  database: SECRETS.LOCAL_DATABASE  // this will be added into here LATER
+    host: "127.0.0.1", // wtf... SECRETS.DB_HOST,
+    user: SECRETS.DB_USER,
+    password: SECRETS.DB_PASSWORD,
+//  database: SECRETS.DB_DATABASE,  // this will be added into here LATER
+//  port: SECRETS.DB_PORT
 };
+
 async function createDatabase() {
     console.log("Connecting to the local database...");
 
-    let connection;
+    let client;
     try {
-        connection = await mariadb.createConnection(DB_INFO);
+        client = new pg.Client(DB_INFO);
+        await client.connect();
         console.log("Connected. Loading database...");
 
         // Create database if it does not exist
-//      let result = await connection.query(`IF (db_id(N'${SECRETS.LOCAL_DATABASE}') IS NULL) BEGIN CREATE DATABASE ${SECRETS.LOCAL_DATABASE} END;`);
-        await connection.query(`CREATE DATABASE IF NOT EXISTS ${SECRETS.LOCAL_DATABASE}`);
+        await client.query(`DROP DATABASE IF EXISTS ${SECRETS.DB_DATABASE}`);
+        await client.query(`CREATE DATABASE ${SECRETS.DB_DATABASE}`);
 
     } catch (err) {
-        console.error("Local Database connection failed.", err);
+        console.error("Local Database connection failed.", err.toString());
+        throw err;
 
     } finally {
-        if (!connection) throw err; // no connection, unknown error
+        await client.end();
+    }
 
+    // Success, add db and create a new pool with it
+    console.log("Local database loaded.");
+    try {
+        // Create tables if they dont exist
+        DB_INFO["database"] = SECRETS.DB_DATABASE;
+        client = new pg.Client(DB_INFO);
+        await client.connect();
+
+        // This DROP statement is only for testing, you can delete these later
+        await client.query("DROP TABLE IF EXISTS shipping, order_items, orders, customers, quantities"); // For testing (delete this later)
+
+        // Hardcoded (for now)
+        await client.query(
+            `CREATE TABLE quantities (
+                part_number  INT PRIMARY KEY,
+                quantity     INT NOT NULL
+            )`
+        );
+
+        await client.query(`
+            CREATE TABLE customers (
+                id       INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+                name     VARCHAR(50),
+                email    VARCHAR(50),
+                address  VARCHAR(50)
+            )`
+        );
+
+        await client.query( // statuses: "Open", "Filled", "Authorized", "Shipped"
+            `CREATE TABLE orders (
+                id           INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
+                customer_id  INT NOT NULL,
+                timestamp    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                shipping     NUMERIC(8,2) NOT NULL DEFAULT 0,
+                status       VARCHAR(10) NOT NULL DEFAULT 'Open',
+
+                CONSTRAINT fk_customer_id FOREIGN KEY (customer_id) REFERENCES customers(id)
+            )`
+        );
+
+        await client.query(
+            `CREATE TABLE order_items (
+                order_id     INT NOT NULL,
+                part_number  INT NOT NULL,
+                quantity     INT NOT NULL,
+
+            PRIMARY KEY (order_id, part_number),
+            CONSTRAINT fk_order_id FOREIGN KEY (order_id) REFERENCES orders(id)
+            )`
+        );
+
+        await client.query(
+            `CREATE TABLE shipping (
+                weight  NUMERIC(4,2) NOT NULL PRIMARY KEY,
+                price   NUMERIC(8,2) NOT NULL
+            )`
+        );
+
+        // Now, get legacy data to...
+        let legacyData;
+        let legacyConnection;
         try {
-            // Success, add db and create a new pool with it
-            await connection.end(); // End this explicitly created connection I created
-            console.log("Local database loaded.");
-
-            DB_INFO["database"] = SECRETS.LOCAL_DATABASE;
-            const newPool = mariadb.createPool(DB_INFO);
-
-            // Create tables if they dont exist
-            let newConnection;
-            try {
-                newConnection = await newPool.getConnection();
-
-                // This DROP statement is only for testing, you can delete this line irl
-                await newConnection.query("DROP TABLE IF EXISTS shipping, order_items, orders, customers, quantities"); // For testing (delete this later)
-
-                // Hardcoded (for now)
-                await newConnection.query(
-                    `CREATE TABLE IF NOT EXISTS quantities (
-                        part_number  INT PRIMARY KEY,
-                        quantity     INT NOT NULL
-                    )`
-                );
-
-                await newConnection.query(`
-                    CREATE TABLE IF NOT EXISTS customers (
-                        id       INT AUTO_INCREMENT PRIMARY KEY,
-                        name     VARCHAR(50),
-                        email    VARCHAR(50),
-                        address  VARCHAR(50)
-                    )`
-                );
-
-                await newConnection.query( // statuses: "Open", "Filled", "Authorized", "Shipped"
-                    `CREATE TABLE IF NOT EXISTS orders (
-                        id           INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
-                        customer_id  INT NOT NULL,
-                        timestamp    TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-                        shipping     FLOAT(8,2) NOT NULL DEFAULT 0,
-                        status       VARCHAR(10) NOT NULL DEFAULT 'Open',
-
-                    CONSTRAINT fk_customer_id FOREIGN KEY (customer_id) REFERENCES customers(id)
-                    )`
-                );
-
-                await newConnection.query(
-                    `CREATE TABLE IF NOT EXISTS order_items (
-                        order_id     INT NOT NULL,
-                        part_number  INT NOT NULL,
-                        quantity     INT NOT NULL,
-
-                    PRIMARY KEY (order_id, part_number),
-                    CONSTRAINT fk_order_id FOREIGN KEY (order_id) REFERENCES orders(id)
-                    )`
-                );
-
-                await newConnection.query(
-                    `CREATE TABLE IF NOT EXISTS shipping (
-                        weight  FLOAT(4,2) NOT NULL PRIMARY KEY,
-                        price   FLOAT(8,2) NOT NULL
-                    )`
-                );
-
-                // Now, get legacy data to...
-                let legacyData;
-                let legacyConnection;
-                try {
-                    legacyConnection = await legacyPool.getConnection();
-                    legacyData = await legacyConnection.query("SELECT * FROM parts");
-                } catch (err) {
-                    console.error("Error closing the legacy connection during setup.", err);
-                    throw err;
-                } finally {
-                    if (legacyConnection) legacyConnection.end();
-                }
-
-                // ...fill our database with random values accurately (for testing)
-                let first_flag = true
-                let random_values = "";
-
-                // Quantities Mock - randomly generating a random list of available quantities for all of the objects
-                for (const dict of legacyData) {
-                    if (first_flag)
-                        first_flag = false;
-                    else
-                        random_values += ',';
-
-                    random_values += '(' + dict.number + ',' + Math.floor(Math.random() * 51) + ')'; // Generates a random integer between 0 and 50
-                }
-                await newConnection.query(`INSERT INTO quantities (part_number, quantity) VALUES ${random_values};`);
-
-                // Customers (hard coded) [name, email, address]
-                await newConnection.query(`
-                    INSERT INTO
-                        customers (name, email, address)
-                    VALUES
-                        ("John Doe",     "jdoe@pizza.com",     "100 Apple St. Rock, WI 60000"),
-                        ("Jane Doe",     "janedoe@pizza.com",  "102 Apple St. Rock, WI 60000"),
-                        ("Bob Roberts",  "bbob@boba.com",      "1010 Jane Ave. Pearl, MI 66000");
-                `);
-
-                // Orders (hard coded) [customer_id, shipping, status]
-                await newConnection.query(`
-                    INSERT INTO
-                        orders (customer_id, shipping, status)
-                    VALUES
-                        (1,  5.00, "Open"),
-                        (2, 10.00, "Open"),
-                        (3, 15.00, "Open");
-                `);
-
-                // Order Items (hard coded) [order_id, part_number, quantity]
-                await newConnection.query(`
-                    INSERT INTO
-                        order_items (order_id, part_number, quantity)
-                    VALUES 
-                        (1, 1, 2),
-                        (1, 2, 5),
-                        (2, 1, 2),
-                        (3, 2, 5);
-                `);
-
-                // Shipping (hard coded) [weight, price]
-                await newConnection.query(`
-                    INSERT INTO
-                        shipping (weight, price)
-                    VALUES
-                        ( 0.00,  0.00),
-                        ( 5.00,  5.00),
-                        (10.00, 10.00),
-                        (15.00, 15.00),
-                        (99.99, 20.00);
-                `);
-
-
-            } catch (err) {
-                console.error("Error setting up tables", err);
-                throw err;
-            } finally {
-                if (newConnection) newConnection.end();
-            }
-
-            // return newPool; // Return it setup (Doesnt work anyway)
-
+            legacyConnection = await legacyPool.getConnection();
+            legacyData = await legacyConnection.query("SELECT * FROM parts");
         } catch (err) {
-            console.error("Error closing the local connection.", err);
-            throw err; // At this point just crash on purpose, idk what's going on with this
+            console.error("Error closing the legacy connection during setup.", err);
+            throw err;
+        } finally {
+            if (legacyConnection) legacyConnection.end();
         }
+
+        // ...fill our database with random values accurately (for testing)
+        let first_flag = true
+        let random_values = "";
+
+        // Quantities Mock - randomly generating a random list of available quantities for all of the objects
+        for (const dict of legacyData) {
+            if (first_flag)
+                first_flag = false;
+            else
+                random_values += ',';
+
+            random_values += '(' + dict.number + ',' + Math.floor(Math.random() * 51) + ')'; // Generates a random integer between 0 and 50
+        }
+        await client.query(`INSERT INTO quantities (part_number, quantity) VALUES ${random_values};`);
+
+        // Customers (hard coded) [name, email, address]
+        await client.query(`
+            INSERT INTO
+                customers (name, email, address)
+            VALUES
+                ('John Doe',     'jdoe@pizza.com',     '100 Apple St. Rock, WI 60000'),
+                ('Jane Doe',     'janedoe@pizza.com',  '102 Apple St. Rock, WI 60000'),
+                ('Bob Roberts',  'bbob@boba.com',      '1010 Jane Ave. Pearl, MI 66000');
+        `);
+
+        // Orders (hard coded) [customer_id, shipping, status]
+        await client.query(`
+            INSERT INTO
+                orders (customer_id, shipping, status)
+            VALUES
+                (1,  5.00, 'Open'),
+                (2, 10.00, 'Open'),
+                (3, 15.00, 'Open');
+        `);
+
+        // Order Items (hard coded) [order_id, part_number, quantity]
+        await client.query(`
+            INSERT INTO
+                order_items (order_id, part_number, quantity)
+            VALUES 
+                (1, 1, 2),
+                (1, 2, 5),
+                (2, 1, 2),
+                (3, 2, 5);
+        `);
+
+        // Shipping (hard coded) [weight, price]
+        await client.query(`
+            INSERT INTO
+                shipping (weight, price)
+            VALUES
+                ( 0.00,  0.00),
+                ( 5.00,  5.00),
+                (10.00, 10.00),
+                (15.00, 15.00),
+                (99.99, 20.00);
+        `);
+
+    } catch (err) {
+        console.error("Error setting up tables", err.toString());
+        throw err; // At this point just crash on purpose, idk what's going on with this
+
+    } finally {
+        await client.end();
     }
 }
-// Forget it, just make a new one
-// const localPool = await createDatabase();
 createDatabase();
-DB_INFO["database"] = SECRETS.LOCAL_DATABASE;
-// DB_INFO["multipleStatements"] = true; // I like this, but it doesnt feel practical
-const localPool = mariadb.createPool(DB_INFO);
+DB_INFO["database"] = SECRETS.DB_DATABASE;
+// DB_INFO["port"] = SECRETS.DB_PORT; // Not needed?
+const pool = new pg.Pool(DB_INFO); // Main pool with everything setup (node-postgres.com/apis/pool)
+// Helper functions
 
 
-
-  ////////////
- // Server //
-////////////
-// Helper functions (used a lot)
+  /////////
+ // API //
+/////////
 async function get_query(sql) {
-    let connection;
+    let client = await pool.connect();
     try {
-        connection = await localPool.getConnection();
-        return await connection.query(sql);
+        let res = await client.query(sql);
+        return res.rows;
 
     } catch (err) {
         console.log("Database Error:", err);
         return null;
 
     } finally {
-        if (connection)
-            connection.end();
+        client.release();
     }
 }
 
 // Safe way of multiple database updates: Transaction pipeline
-// https://mariadb.com/docs/server/connect/programming-languages/nodejs/promise/query-pipelining/
+// node-postgres.com/features/transactions
 async function set_queries(sqls) {
-    let connection;
+    let client = await pool.connect();
     try {
-        connection = await localPool.getConnection();
-        await connection.beginTransaction();
+        await client.query("BEGIN");
 
-        try {
-            let rows_affected = 0; // Optional counter for debugging
-
-            // Run statements
-            for (const sql of sqls) {
-                let response = await connection.query(sql); // Not optimized at all lol
-                rows_affected += response.affectedRows;
-            }
-
-            // Commit Changes
-            await connection.commit();
-            return rows_affected;
-
-        } catch (err) {
-            console.error("Error updating database, reverting changes: ", err);
-            await connection.rollback(); // Undo
-            throw err;
+        // Run statements
+        let rows_affected = 0; // Optional counter for debugging
+        for (const sql of sqls) {
+            let response = await client.query(sql); // Not optimized at all lol
+            rows_affected += response.rowCount;
         }
 
+        // Commit Changes
+        await client.query("COMMIT");
+        return rows_affected;
+
     } catch (err) {
-        console.log("Database Transaction error: ", err);
-        return null;
+        console.error("Database transaction error, reverting changes: ", err);
+        await client.query("ROLLBACK"); // Undo
+        throw err;
 
     } finally {
-        if (connection)
-            connection.end();
+        client.end();
     }
 }
 
@@ -269,17 +249,20 @@ async function set_queries(sqls) {
   /////////
  // API //
 /////////
-// LEGACY: Sending the parts (excluding the available quantity) from the legacy DB
+// LEGACY (mariadb): Sending the parts (excluding the available quantity) from the legacy DB
 app.get("/api/shop/items", async (req, res) => {
     let connection;
     try {
         connection = await legacyPool.getConnection();
         const rows = await connection.query("SELECT * FROM parts");
+
         res.json(rows);
         console.log("Server: Sending legacy items");
 
     } catch (err) {
+        console.log(err);
         res.status(500).send({ error: 'Database query failed' });
+        return; // Error?
 
     } finally {
         if (connection)
@@ -334,110 +317,105 @@ app.post('/api/shop/pay', async (req, res) => {
     let paymentInfo = req.body;
     console.log(paymentInfo);
 
-    let connection;
+    let client = await pool.connect();
     try {
-        connection = await localPool.getConnection();
-        await connection.beginTransaction();
+        await client.query("BEGIN");
+        let rows_affected = 0; // Optional counter for debugging
 
-        try {
-            let rows_affected = 0; // Optional counter for debugging
+        // Add customer
+        let response = await client.query(`
+            INSERT INTO
+                customers (name, email, address)
+            VALUES
+                ('${paymentInfo.name}', '${paymentInfo.email}', '${paymentInfo.address}')
+            RETURNING id;
+        `);
+        rows_affected += response.rowCount;
 
-            // Add customer
-            let response = await connection.query(`
-                INSERT INTO
-                    customers (name, email, address)
-                VALUES
-                    ('${paymentInfo.name}', '${paymentInfo.email}', '${paymentInfo.address}');
-            `);
-            console.log(response);
-            rows_affected += response.affectedRows;
+        console.log(response);
+
+        // Add Order (timestamp is automatic)
+        const CUSTOMER_ID = response.rows[0].id;
+        response = await client.query(`
+            INSERT INTO
+                orders (customer_id, shipping, status)
+            VALUES
+                (${CUSTOMER_ID}, ${paymentInfo.shipping}, 'Open')
+            RETURNING id;
+        `);
+        rows_affected += response.rowCount;
             
-            // Add Order (timestamp is automatic)
-            const CUSTOMER_ID = response.insertId;
-            response = await connection.query(`
-                INSERT INTO
-                    orders (customer_id, shipping, status)
-                VALUES
-                    (${CUSTOMER_ID}, ${paymentInfo.shipping}, 'Open')
-            `);
-            rows_affected += response.affectedRows;
-            
-            // Add Order Items
-            const ORDER_ID = response.insertId;
-            const part_numbers = paymentInfo.orderItems;
-            const quantities = paymentInfo.quantities;
-            let first_flag = true;
-            let random_values = "";
-            for (let i = 0; i < part_numbers.length; i++) {
-                if (first_flag)
-                    first_flag = false;
-                else
-                    random_values += ',';
+        // Add Order Items
+        const ORDER_ID = response.rows[0].id;
+        const part_numbers = paymentInfo.orderItems;
+        const quantities = paymentInfo.quantities;
+        let first_flag = true;
+        let random_values = "";
+        for (let i = 0; i < part_numbers.length; i++) {
+            if (first_flag)
+                first_flag = false;
+            else
+                random_values += ',';
 
-                random_values += `(${ORDER_ID},${part_numbers[i]},${quantities[i]})`; // Generates a random integer between 0 and 50
-            }
-            response = await connection.query(`INSERT INTO order_items (order_id, part_number, quantity) VALUES ${random_values};`);
-            rows_affected += response.affectedRows;
+            random_values += `(${ORDER_ID},${part_numbers[i]},${quantities[i]})`; // Generates a random integer between 0 and 50
+        }
+        response = await client.query(`INSERT INTO order_items (order_id, part_number, quantity) VALUES ${random_values};`);
+        rows_affected += response.rowCount;
 
-            // If here, then out database will allow this transaction
-            // So NOW we process the credit card
-            response = await fetch(SECRETS.CC_WEBSITE, {
-                method: "POST",
-                headers: {
-                    "Content-type": "application/json; charset=UTF-8"
-                },
-                /**
-                body: JSON.stringify({
-                    trans: SECRETS.TRANSACTION_ID,
-                    vendor: SECRETS.VENDOR_ID,
-                    name: paymentInfo.name,
-                    cc: paymentInfo.creditCard,
-                    exp: paymentInfo.expiration,
-                    amount: paymentInfo.amount
-                })
-                //*/
-                // For testing, uncomment above when we present this
-                body: JSON.stringify({
-                    trans: "907-275800-296",
-                    vendor: "VE001-99",
-                    name: "John Doe",
-                    cc: "6011 1234 4321 1234",
-                    exp: "12/2024",
-                    amount: 654.32
-                })
+        // If here, then out database will allow this transaction
+        // So NOW we process the credit card
+        response = await fetch(SECRETS.CC_WEBSITE, {
+            method: "POST",
+            headers: {
+                "Content-type": "application/json; charset=UTF-8"
+            },
+            /**
+            body: JSON.stringify({
+                trans: SECRETS.TRANSACTION_ID,
+                vendor: SECRETS.VENDOR_ID,
+                name: paymentInfo.name,
+                cc: paymentInfo.creditCard,
+                exp: paymentInfo.expiration,
+                amount: paymentInfo.amount
             })
+            //*/
+            // For testing, uncomment above when we present this
+            body: JSON.stringify({
+                trans: "907-275800-296",
+                vendor: "VE001-99",
+                name: "John Doe",
+                cc: "6011 1234 4321 1234",
+                exp: "12/2024",
+                amount: 654.32
+            })
+        })
 
-            const data = await response.json();
+        const data = await response.json();
 
-            if ("errors" in data) {
-                // if payment failed - the send() message won't show either way so maybe remove that
-                //res.status(402).send( {"status" : "DECLINED"} )
-                console.log("Credit Card Transaction failed", data.errors);
-                throw data.errors[0];
-            } else {
-                // Commit Changes ONLY if credit card transaction was successful
-                await connection.commit();
+        if ("errors" in data) {
+            // if payment failed - the send() message won't show either way so maybe remove that
+            //res.status(402).send( {"status" : "DECLINED"} )
+            console.log("Credit Card Transaction failed", data.errors);
+            throw data.errors[0];
+        } else {
+            // Commit Changes ONLY if credit card transaction was successful
+            await client.query("COMMIT")
 
-                // transaction is successful - the send() message will show up with the short JSON array below
-                //res.status(200).send( {"status" : "APPROVED"} );
+            // transaction is successful - the send() message will show up with the short JSON array below
+            //res.status(200).send( {"status" : "APPROVED"} );
 
-                res.status(200).json(data); // only for testing purposes for the Dialog window in frontend
-                console.log(`Server: Added new order ${ORDER_ID} and charged cc: ${data.cc}. ${rows_affected} record(s) updated`);
-            }
-
-        } catch (err) {
-            console.error("Transaction error, reverting any database changes: ", err);
-            await connection.rollback(); // Undo
-            throw err;
+            res.status(200).json(data); // only for testing purposes for the Dialog window in frontend
+            console.log(`Server: Added new order ${ORDER_ID} and charged cc: ${data.cc}. ${rows_affected} record(s) updated`);
         }
 
     } catch (err) {
-        console.log("Database Order error: ", err);
+        await client.query("ROLLBACK"); // Undo
+        console.error("Transaction error, reverting any database changes: ", err);
         res.status(402).send({"status":"DECLINED"}); // only for testing purposes for the Dialog window in frontend
+        throw err;
 
     } finally {
-        if (connection)
-            connection.end();
+        client.release();
     }
 });
 
@@ -453,7 +431,7 @@ app.get("/api/orders", async (req, res) => {
             customers.name    AS NAME,
             customers.address AS address,
             customers.email   AS email,
-            FLOOR(UNIX_TIMESTAMP(orders.timestamp)/1000) AS orderDate
+            FLOOR(EXTRACT(EPOCH FROM orders.timestamp)) AS timestamp
         FROM
             orders,
             customers
@@ -472,7 +450,9 @@ app.get("/api/orders", async (req, res) => {
         for (let i = 0; i < orders.length; i++) {
             let order = orders[i];
             temp_lookup[order.id] = i;
-            order.orderDate = parseInt(order.orderDate); // BigInt to Int cuz this JSON cant parse BigInt
+            order.shipping = parseFloat(order.shipping); // Because postgres returns this as a string for some godam reason
+            order.orderDate = parseInt(order.timestamp); // Same for timestamp
+            delete order.timestamp; // why is orderDate LOWERCASED??!?!?
         }
 
         // Combine
@@ -518,21 +498,22 @@ app.post("/api/ff/complete", async (req, res) => {
         WHERE  id = ${completedOrder};
     `,`
         UPDATE
-            quantities A,
-            order_items B
+            quantities AS A
         SET
-            A.quantity = A.quantity - B.quantity
+            quantity = A.quantity - B.quantity
+        FROM
+            order_items AS B
         WHERE
             A.part_number = B.part_number
             AND B.order_id = ${completedOrder};
     `]);
 
-    if (!rows_affected) {
+    if (rows_affected) {
+        console.log(`Server: Updated order ${completedOrder} to "Filled" and its item's quantities. ${rows_affected} record(s) updated`);
+        res.status(200).send();
+    } else {
         res.status(500).send({ error: 'Database query for order fulfillment failed' });
-        return;
     }
-
-    console.log(`Server: Updated order ${completedOrder} to "Filled" and its item's quantities. ${rows_affected} record(s) updated`);
 });
 
 
@@ -546,12 +527,12 @@ app.post("/api/rcv/available", async (req, res) => {
         WHERE  part_number = ${data.id};
     `]);
 
-    if (!rows_affected) {
+    if (rows_affected) {
+        console.log("Server: Updating a row from the quantity table to reflect the new quantity on hand");
+        res.status(200).send();
+    } else {
         res.status(500).send({ error: 'Database query for quantities failed' });
-        return;
     }
-
-    console.log("Server: Updating a row from the quantity table to reflect the new quantity on hand");
 });
 
 
@@ -563,7 +544,7 @@ app.get("/api/admin/brackets", async (req, res) => {
         let old_brackets = [];
         for (let i = 1; i < shipping_brackets.length; i++) {
             const bracket = shipping_brackets[i];
-            old_brackets[i-1] = {id: i, low: prev.weight, high: bracket.weight, price: prev.weight};
+            old_brackets[i-1] = {id: i, low: prev.weight, high: bracket.weight, price: parseFloat(prev.price)};
             prev = bracket;
         }
 
@@ -581,4 +562,28 @@ app.post("/api/admin/add_bracket", async (req, res) => {
     console.log("TODO: Adding and updating rows in brackets table for new ranges");
 });
 
-app.listen(SECRETS.LOCAL_PORT, () => console.log(`Server is running on port ${SECRETS.LOCAL_PORT}`));
+
+
+  ////////////
+ // Server //
+////////////
+// Main page (debug info)
+app.get("/", async (req, res) => {
+//  res.writeHead(200, { 'Content-Type': 'text/plain' });
+//  res.end('Hello World!\n');
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    const a = await get_query("SELECT * FROM customers");
+    const b = await get_query("SELECT * FROM orders");
+    const c = await get_query("SELECT * FROM order_items");
+    const d = await get_query("SELECT * FROM shipping");
+    const e = await get_query("SELECT * FROM quantities");
+    res.end(JSON.stringify([
+        "---     CUSTOMERS     ---", a,
+        "---      ORDERS       ---", b,
+        "---   ORDER ITEMS     ---", c,
+        "--- SHIPPING BRACKETS ---", d,
+        "---    QUANTITIES     ---", e.map(row => row.quantity)
+    ]));
+});
+
+app.listen(SECRETS.PORT, () => console.log(`Server is running on port ${SECRETS.PORT}`));
