@@ -166,7 +166,13 @@ const dbController = {
                 //*/
             })
 
-            const data = await response.json();
+            const data = await response.json() || [];
+
+            // Adding to callback
+            data.email = paymentInfo.email;
+            data.name = paymentInfo.name;
+            data.address = paymentInfo.address;
+            data.orderId = ORDER_ID;
 
             if ("errors" in data) {
                 // if payment failed - the send() message won't show either way so maybe remove that
@@ -181,6 +187,7 @@ const dbController = {
                 // transaction is successful - the send() message will show up with the short JSON array below
                 //res.status(200).send( {"status" : "APPROVED"} );
 
+                console.log("credit_card -->", data);
                 res.status(200).json(data); // only for testing purposes for the Dialog window in frontend
                 console.log(`Server: Added new order ${ORDER_ID} and charged cc: ${data.cc}. ${rows_affected} record(s) updated`);
             }
