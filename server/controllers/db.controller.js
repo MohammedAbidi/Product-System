@@ -172,7 +172,7 @@ const dbController = {
                 // if payment failed - the send() message won't show either way so maybe remove that
                 //res.status(402).send( {"status" : "DECLINED"} )
                 console.log("Credit Card Transaction failed", data.errors);
-                res.status(402).send({"status":"DECLINED"}); // only for testing purposes for the Dialog window in frontend
+                res.status(402).send({"status":"DECLINED", response: data}); // only for testing purposes for the Dialog window in frontend
                 return data.errors[0];
             } else {
                 // Commit Changes ONLY if credit card transaction was successful
