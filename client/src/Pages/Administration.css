@@ -1,3 +1,24 @@
-#container {
-    background-color: aqua;
+.tab-content {
+    padding: 50px;
+    text-align: center;
+}
+
+.info-table {
+    border-collapse: collapse; /* For better table styling */
+    width: auto; /* Adjust table width */
+    margin: auto; /* Ensures horizontal centering (redundant with flexbox) */
+    text-align: center;
+}
+
+.info-table th, .info-table td {
+    padding: 1em; /* Adds padding to table cells */
+}
+
+.data-entry {
+    width: 5em;
+}
+
+.label-input-btn {
+    display: inline-block;
+    padding: 1em;
 }

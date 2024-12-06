@@ -60,12 +60,15 @@ var orders = [
     }
 ];
 
+
 var brackets = [
     { "id": 1, "low": 0, "high": 5, "price": 0.0 },
-    { "id": 2, "low": 5, "high": 10, "price": 5.0 },
+    { "id": 2, "low": 5, "high": 10, "price": 5.99 },
     { "id": 3, "low": 10, "high": 15, "price": 10.0 },
-    { "id": 4, "low": 15, "high": 20, "price": 15.0}
+    { "id": 4, "low": 15, "high": 20, "price": 15.0},
+    { "id": 5, "low": 20, "high": 1500, "price": 55.0}
 ];
+//var brackets = [];
 
 // Sending the parts (excluding the available quantity) from the legacy DB
 app.get("/api/shop/items", async (req, res) => {
@@ -207,6 +210,43 @@ app.get("/api/admin/brackets", async (req, res) => {
 // Adding and updating rows in brackets table for new ranges
 app.post("/api/admin/add_bracket", async (req, res) => {
     console.log("Adding and updating rows in brackets table for new ranges");
+
+    let newBracket = req.body;
+    console.log(newBracket);
+    /*
+    let removeRowId = req.body.removeRow;
+    let addRowsArr = req.body.addRows;
+    console.log(removeRowId);
+    console.log(addRowsArr);
+    console.log(addRowsArr.length);
+
+    if (removeRowId === -1) {
+        console.log("Only adding a row");
+
+        brackets.push(addRowsArr[0]);
+        console.log(brackets);
+    } else if (removeRowId > -1) {
+        console.log("A row needs to be removed");
+        let bracketsItemIndex = -1;
+        for (let i = 0; i < brackets.length; i++) {
+            if (brackets[i].id === removeRowId) {
+                console.log("Found the matching bracket row with the id to remove");
+                bracketsItemIndex = i;
+                break;
+            }
+        }
+        brackets.splice(bracketsItemIndex, 1);
+
+        console.log("Added new rows");
+        brackets.push(addRowsArr[0]);
+        brackets.push(addRowsArr[1]);
+    }*/
+});
+
+app.post("/api/admin/remove_bracket", async (req, res) => {
+    // the id of the weight to remove
+    let id = req.body.id;
+    console.log(id);
 });
 
 const PORT = 5000;
