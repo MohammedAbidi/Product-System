@@ -1,7 +1,7 @@
   /////////////
  // Imports //
 /////////////
-const SECRETS = require("./secrets");
+require('dotenv').config()
 
 const pg = require("pg")
 const mariadb = require("mariadb");
@@ -17,50 +17,31 @@ app.use(express.json());
  // Database //
 //////////////
 const legacyPool = mariadb.createPool({
-    host: SECRETS.LEGACY_HOST,
-    port: SECRETS.LEGACY_PORT,
-    user: SECRETS.LEGACY_USER,
-    password: SECRETS.LEGACY_PASSWORD,
-    database: SECRETS.LEGACY_DATABASE,
+    host: process.env.LEGACY_HOST,
+    port: process.env.LEGACY_PORT,
+    user: process.env.LEGACY_USER,
+    password: process.env.LEGACY_PASSWORD,
+    database: process.env.LEGACY_DATABASE,
 });
 
-// Setup local database (pool)
-let DB_INFO = {
-    host: "127.0.0.1", // wtf... SECRETS.DB_HOST,
-    user: SECRETS.DB_USER,
-    password: SECRETS.DB_PASSWORD,
-//  database: SECRETS.DB_DATABASE,  // this will be added into here LATER
-//  port: SECRETS.DB_PORT
-};
+// Main database (pool) with everything setup (node-postgres.com/apis/pool)
+const pool = new pg.Pool({
+    connectionString: process.env.POSTGRES_URL + "?sslmode=require",
+    host: process.env.POSTGRES_HOST,
+    user: process.env.POSTGRES_USER,
+    password: process.env.POSTGRES_PASSWORD,
+    database: process.env.POSTGRES_DATABASE,
+//  port: process.env.DB_PORT // not needed?
+});
 
 async function createDatabase() {
     console.log("Connecting to the local database...");
 
     let client;
     try {
-        client = new pg.Client(DB_INFO);
-        await client.connect();
-        console.log("Connected. Loading database...");
-
-        // Create database if it does not exist
-        await client.query(`DROP DATABASE IF EXISTS ${SECRETS.DB_DATABASE}`);
-        await client.query(`CREATE DATABASE ${SECRETS.DB_DATABASE}`);
-
-    } catch (err) {
-        console.error("Local Database connection failed.", err.toString());
-        throw err;
-
-    } finally {
-        await client.end();
-    }
-
-    // Success, add db and create a new pool with it
-    console.log("Local database loaded.");
-    try {
         // Create tables if they dont exist
-        DB_INFO["database"] = SECRETS.DB_DATABASE;
-        client = new pg.Client(DB_INFO);
-        await client.connect();
+        client = await pool.connect();
+        console.log("Connected.");
 
         // This DROP statement is only for testing, you can delete these later
         await client.query("DROP TABLE IF EXISTS shipping, order_items, orders, customers, quantities"); // For testing (delete this later)
@@ -188,13 +169,10 @@ async function createDatabase() {
         throw err; // At this point just crash on purpose, idk what's going on with this
 
     } finally {
-        await client.end();
+        await client.release();
     }
 }
 createDatabase();
-DB_INFO["database"] = SECRETS.DB_DATABASE;
-// DB_INFO["port"] = SECRETS.DB_PORT; // Not needed?
-const pool = new pg.Pool(DB_INFO); // Main pool with everything setup (node-postgres.com/apis/pool)
 // Helper functions
 
 
@@ -364,15 +342,15 @@ app.post('/api/shop/pay', async (req, res) => {
 
         // If here, then out database will allow this transaction
         // So NOW we process the credit card
-        response = await fetch(SECRETS.CC_WEBSITE, {
+        response = await fetch(process.env.CC_WEBSITE, {
             method: "POST",
             headers: {
                 "Content-type": "application/json; charset=UTF-8"
             },
             /**
             body: JSON.stringify({
-                trans: SECRETS.TRANSACTION_ID,
-                vendor: SECRETS.VENDOR_ID,
+                trans: process.env.TRANSACTION_ID,
+                vendor: process.env.VENDOR_ID,
                 name: paymentInfo.name,
                 cc: paymentInfo.creditCard,
                 exp: paymentInfo.expiration,
@@ -586,4 +564,4 @@ app.get("/", async (req, res) => {
     ]));
 });
 
-app.listen(SECRETS.PORT, () => console.log(`Server is running on port ${SECRETS.PORT}`));
+app.listen(process.env.PORT, () => console.log(`Server is running on port ${process.env.PORT}`));
