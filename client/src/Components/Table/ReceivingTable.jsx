@@ -3,7 +3,8 @@ import ReactDOM from "react-dom";
 import './ReceivingTable.css'
 
 //const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
-const WEBSITE = "http://localhost:5000";
+const WEBSITE = "https://productsystemdb.vercel.app";
+//const WEBSITE = "http://localhost:5000";
 
 function DataTable() {
     const [data, setData] = useState([]);

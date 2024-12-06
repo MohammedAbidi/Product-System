@@ -80,18 +80,3 @@ body {
     display: "inline-block";
     padding: "1em"
 }
-
-.search-section {
-    padding-top: 2em;
-    padding-left: 3em;
-}
-
-#label-item-search {
-    font-size: 1.5em;
-}
-
-#item-search {
-    width: 20em;
-    height: 2em;
-    font-size: 1em;
-}

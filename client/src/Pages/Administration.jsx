@@ -7,7 +7,8 @@ import "./Administration.css"
 import close_icon from "../Components/Assets/close_24dp.png"
 
 //const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
-const WEBSITE = "http://localhost:5000";
+const WEBSITE = "https://productsystemdb.vercel.app";
+//const WEBSITE = "http://localhost:5000";
 
 function Administration() {
     const [data, setData] = useState([]);
