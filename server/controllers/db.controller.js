@@ -143,9 +143,9 @@ const dbController = {
                 headers: {
                     "Content-type": "application/json; charset=UTF-8"
                 },
-                /**
+                /**/
                 body: JSON.stringify({
-                    trans: process.env.TRANSACTION_ID,
+                    trans: process.env.TRANSACTION_ID + '-' + Date.now(),
                     vendor: process.env.VENDOR_ID,
                     name: paymentInfo.name,
                     cc: paymentInfo.creditCard,
@@ -153,7 +153,8 @@ const dbController = {
                     amount: paymentInfo.amount
                 })
                 //*/
-                // For testing, uncomment above when we present this
+
+                /** For testing, uncomment above when we present this
                 body: JSON.stringify({
                     trans: "907-275800-296",
                     vendor: "VE001-99",
@@ -162,6 +163,7 @@ const dbController = {
                     exp: "12/2024",
                     amount: 654.32
                 })
+                //*/
             })
 
             const data = await response.json();
@@ -329,7 +331,7 @@ const dbController = {
     post_admin_add_bracket: async (req, res) => {
         const data = req.body; // {weight: 3.23, price: 47.23}
 
-        const rows_affected = await get_query(` INSERT INTO shipping (weight, price) VALUES (${data.weight}, ${data.price});`);
+        const rows_affected = await get_query(`INSERT INTO shipping (weight, price) VALUES (${data.weight}, ${data.price});`);
         if (rows_affected) {
             console.log(`Server: Added a new bracket of ${data}`);
             res.status(200).send();
