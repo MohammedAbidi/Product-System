@@ -1,21 +1,11 @@
 // Imports
 require('dotenv').config()
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"; // for testing locally (delete when pushing, npm start)
 
 const express = require("express")
-// const cors = require("cors");
+const cors = require("cors");
 
 const app = express()
-
-// Work already!!!
-app.use((req, res, next) => {
-    res.header('Access-Control-Allow-Origin', '*');
-    res.header('Access-Control-Allow-Headers', 'Origin, X-Requested-With, Content-Type, Accept');
-    next();
-})
-// app.use(cors())
-// app.use(cors({origin: true, credentials: true})); // I do not care anymore
-// app.options('*', cors()) // enable pre-flight across-the-board
+app.use(cors())
 app.use(express.json())
 
 // Api
