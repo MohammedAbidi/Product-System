@@ -166,7 +166,7 @@ const dbController = {
                 //*/
             })
 
-            const data = await response.json() || [];
+            const data = await response.json();
 
             // Adding to callback
             data.email = paymentInfo.email;
