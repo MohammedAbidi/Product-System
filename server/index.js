@@ -1,6 +1,6 @@
 // Imports
 require('dotenv').config()
-process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"; // for testing locally (delete when pushing, npm start)
+// process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"; // for testing locally (delete when pushing, npm start)
 
 const express = require("express")
 const cors = require("cors");
