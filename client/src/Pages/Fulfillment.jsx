@@ -4,8 +4,8 @@ import { Button, Dialog, DialogActions, DialogContent, DialogContentText, Dialog
 import "./Fulfillment.css"
 import close_icon from "../Components/Assets/close_24dp.png"
 
-const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
-// const WEBSITE = "http://localhost:5000";
+//const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
+const WEBSITE = "http://localhost:5000";
 
 function Fulfillment() {
     const [data, setData] = useState([]);
@@ -27,20 +27,8 @@ function Fulfillment() {
     const [packingListItems, setPackingListItems] = useState([]);
     const [itemsPurchased, setItemsPurchased] = useState([]);
 
-    /*
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await fetch(WEBSITE + '/api/shop/items');
-                const result = await response.json();
-                setData(result);
-            } catch (error) {
-                console.error('Error fetching data: ', error);
-            }
-        };
+    const [isSubmitting, setIsSubmitting] = useState(false);
 
-        fetchData();
-    }, []);*/
     const fetchData = async () => {
         try {
             const response = await fetch(WEBSITE + '/api/shop/items');
@@ -79,38 +67,10 @@ function Fulfillment() {
     }, []);
 
     useEffect(() => {
-        console.log('Updated Open Orders: ', openOrders);
-        console.log('Updated Data: ', data);
-    }, [openOrders, data]);
-
-    useEffect(() => {
         // Wait until the data and openOrders arrays are loaded
         if (data.length === 0 || openOrders.length === 0) {
             return;
         }
-
-        /*
-        const calculateTotals = () => {
-            const tempTotals = openOrders.map((order) => {
-                let orderTotal = 0;
-
-                // Calculate total for each item in the order
-                for (const pId in order.items) {
-                    const product = data.find((prod) => prod.number === parseInt(pId, 10)); // Ensure pId is parsed as an integer
-                    if (product) {
-                        orderTotal += product.price * order.items[pId]; // price * quantity
-                    }
-                }
-
-                // Add shipping cost
-                orderTotal += order.shipping || 0;
-                return orderTotal;
-            });
-
-            setTotals(tempTotals); // Save calculated totals to state
-        };
-
-        calculateTotals();*/
 
         // Calculating the Total price (price of items purchased + shipping cost) and the Weight of each order
         var tempAmount = {};
@@ -177,20 +137,22 @@ function Fulfillment() {
         setOpenReviewOrder(true);
     }
     
-
     const handleCloseReviewOrder = () => {
         setOpenReviewOrder(false);
     }
 
     const handleOrderFulfilled = async (orderId) => {
-        console.log("Here is the fulfilled order's ID: " + orderId);
-        setOpenReviewOrder(false);
-
-        const payload = {
-            id: orderId
-        };
+        if (isSubmitting) {
+            return;
+        }
+        setIsSubmitting(true);
 
         try {
+            setOpenReviewOrder(false);
+            const payload = {
+                id: orderId
+            };
+
             const response = await fetch(WEBSITE + '/api/ff/complete', {
                 method: 'POST',
                 headers: {
@@ -198,8 +160,12 @@ function Fulfillment() {
                 },
                 body: JSON.stringify(payload),
             });
+            
+            const result = await response.json();
 
-            if (!response.ok) throw new Error('Error completing order');
+            if (!response.ok) {
+                throw new Error(result.error || "Failed to fulfill order");
+            }
 
             // Clear data and then refresh
             setOpenOrders([]);
@@ -207,7 +173,9 @@ function Fulfillment() {
             await fetchData();
             await fetchOrders();
         } catch (error) {
-            console.error('Error submitting payment:', error);
+            console.error('Error fulfilling order:', error);
+        } finally {
+            setIsSubmitting(false);
         }
     };
 
@@ -266,7 +234,7 @@ function Fulfillment() {
                     <p>Order confirmation sent to: {emailVal}</p>
                 </DialogContent>
                 <DialogActions sx={{ justifyContent: 'center' }}>
-                    <Button onClick={() => handleOrderFulfilled(reviewedOrderId)} color="primary" variant="outlined">
+                    <Button onClick={() => handleOrderFulfilled(reviewedOrderId)} color="primary" variant="outlined" disabled={isSubmitting}>
                         Order Fulfilled
                     </Button>
                 </DialogActions>

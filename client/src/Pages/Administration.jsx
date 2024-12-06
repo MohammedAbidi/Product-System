@@ -6,6 +6,9 @@ import ReactDOM from "react-dom";
 import "./Administration.css"
 import close_icon from "../Components/Assets/close_24dp.png"
 
+//const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
+const WEBSITE = "http://localhost:5000";
+
 function Administration() {
     const [data, setData] = useState([]);
     const [amount, setAmount] = useState([]);
@@ -30,10 +33,56 @@ function Administration() {
     const [activeTab, setActiveTab] = useState('Orders');
     const [brackets, setBrackets] = useState([]);
 
+    const [filterStartDate, setFilterStartDate] = useState('');
+    const [filterEndDate, setFilterEndDate] = useState('');
+    const [filterMinTotal, setFilterMinTotal] = useState('');
+    const [filterMaxTotal, setFilterMaxTotal] = useState('');
+    const [filterStatus, setFilterStatus] = useState('all');
+
+    const [filteredOrders, setFilteredOrders] = useState([]);
+
+    const statusMap = new Map();
+    statusMap.set("authorized", "Open");
+    statusMap.set("shipped", "Filled");
+
+    useEffect(() => {
+        const applyFilters = () => {
+            let filtered = orders;
+
+            // Filter by start and end date
+            if (filterStartDate) {
+                filtered = filtered.filter((order) => new Date(order.orderDate * 1000) >= new Date(filterStartDate));
+            }
+            if (filterEndDate) {
+                filtered = filtered.filter((order) => new Date(order.orderDate * 1000) <= new Date(filterEndDate));
+            }
+
+            // Filter by total range
+            if (filterMinTotal) {
+                filtered = filtered.filter((order) => parseFloat(total[order.id]) >= parseFloat(filterMinTotal));
+            }
+            if (filterMaxTotal) {
+                filtered = filtered.filter((order) => parseFloat(total[order.id]) <= parseFloat(filterMaxTotal));
+            }
+
+            // Filter by status
+            if (filterStatus !== 'all') {
+                //console.log("filterStatus: " + filterStatus);
+                let mappedVal = statusMap.get(filterStatus);
+                //console.log("mappedVal: " + mappedVal);
+                filtered = filtered.filter((order) => order.status.toLowerCase() === mappedVal.toLowerCase());
+            }
+
+            setFilteredOrders(filtered);
+        };
+
+        applyFilters();
+    }, [filterStartDate, filterEndDate, filterMinTotal, filterMaxTotal, filterStatus, orders, total]);
+
     useEffect(() => {
         const fetchData = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/shop/items');
+                const response = await fetch(WEBSITE + '/api/shop/items');
                 const result = await response.json();
                 setData(result);
             } catch (error) {
@@ -48,7 +97,7 @@ function Administration() {
         const fetchOrders = async () => {
             // For "items", it is a dictionary where the key is the product number and the value is the available quantity
             try {
-                const response = await fetch('http://localhost:5000/api/orders');
+                const response = await fetch(WEBSITE + '/api/orders');
                 const result = await response.json();
                 setOrders(result);
             } catch (error) {
@@ -68,36 +117,25 @@ function Administration() {
         // Calculating the Total price (price of items purchased + shipping cost) and the Weight of each order
         var tempAmount = {};
         var tempTotal = {};
-        //var tempWeight = {};
         var orderAmount = 0.0;
         var orderTotal = 0.0;
-        //var orderWeight = 0.0;
         for (let order = 0; order < orders.length; order++) { // iterate through each order
             let itemsDict = orders[order].items;
             for (const pId in itemsDict) {
                 let product = data.find((prod) => prod.number === Number(pId));
                 orderAmount += (product.price * itemsDict[pId]);
-
-                //orderWeight += (product.weight * itemsDict[pId]);
             }
             orderTotal = orderAmount + orders[order].shipping;
 
             tempAmount[orders[order].id] = orderAmount.toFixed(2);
             tempTotal[orders[order].id] = orderTotal.toFixed(2);
-            //tempWeight[orders[order].id] = orderWeight.toFixed(2);
             
             orderAmount = 0.0;
             orderTotal = 0.0;
-            //orderWeight = 0.0;
         }
+
         setAmount(tempAmount);
         setTotal(tempTotal);
-        //console.log("Amount:");
-        //console.log(amount);
-        console.log("Total:");
-        console.log(total);
-        //console.log(total[1]);
-        //setWeight(tempWeight);
     }, [data, orders]);
 
     // Retrieving the Shipping details
@@ -105,9 +143,8 @@ function Administration() {
         // Shipping table is called "Brackets"
         const fetchBrackets = async () => {
             try {
-                const response = await fetch('http://localhost:5000/api/admin/brackets');
+                const response = await fetch(WEBSITE + '/api/admin/brackets');
                 const result = await response.json();
-                //console.log(result);
 
                 let sortedBrackets = result.sort(function(a, b) {
                     return parseFloat(a.low) - parseFloat(b.low);
@@ -158,9 +195,7 @@ function Administration() {
     }
 
     
-    function reviewOrder(order) {
-        console.log(order);
-        
+    function reviewOrder(order) {        
         setDialogTitle("Order: " + order.id + ", Status: " + (order.status === "Open" ? "Authorized" : "Shipped"));
     
         // Prepare list items based on the order
@@ -188,18 +223,14 @@ function Administration() {
         setReviewedOrderId(order.id);
         setOpenReview(true);
     }
-
     
     const handleCloseReview = () => {
         setOpenReview(false);
     }
 
     async function sendNewBracketRequest(bracketData) {
-        console.log("Sending request to API");
-        console.log("Sending the following data:");
-        console.log(bracketData);
         try {
-            const response = await fetch('http://localhost:5000/api/admin/add_bracket', {
+            const response = await fetch(WEBSITE + '/api/admin/add_bracket', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -214,11 +245,8 @@ function Administration() {
     }
 
     async function sendRemoveBracketRequest(bracketData) {
-        console.log("Sending request to API");
-        console.log("Sending the following data:");
-        console.log(bracketData);
         try {
-            const response = await fetch('http://localhost:5000/api/admin/remove_bracket', {
+            const response = await fetch(WEBSITE + '/api/admin/remove_bracket', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
@@ -343,20 +371,47 @@ function Administration() {
     }
 
     function removeBracket(shippingPrice) {
-        console.log(shippingPrice);
-        console.log(typeof shippingPrice);
-
         let reqData = {
             id: shippingPrice
         }
         sendRemoveBracketRequest(reqData);
     }
 
+    const handleStartDateChange = (e) => setFilterStartDate(e.target.value);
+    const handleEndDateChange = (e) => setFilterEndDate(e.target.value);
+    const handleMinTotalChange = (e) => setFilterMinTotal(e.target.value);
+    const handleMaxTotalChange = (e) => setFilterMaxTotal(e.target.value);
+    const handleStatusChange = (e) => setFilterStatus(e.target.value);
+
     const renderTabContent = () => {
         if (activeTab === 'Orders') {
             return (
                 <div className='tab-content'>
                     <h2>All Orders</h2>
+                    <br/>
+                    <div>
+                        <div>
+                            <label htmlFor='startDate'>Select a start date:</label>
+                            <input id="startDate" type="date" onChange={handleStartDateChange} style={{marginRight: "1em"}} />
+                            <label htmlFor='endDate'>Select an end date:</label>
+                            <input id="endDate" type="date" onChange={handleEndDateChange} />
+                        </div>
+                        <div>
+                            <label htmlFor='lowTotal'>Minimum Total:</label>
+                            <input id="lowTotal" type="number" onChange={handleMinTotalChange} style={{marginRight: "1em"}} />
+                            <label htmlFor='highTotal'>Maximum Total:</label>
+                            <input id="highTotal" type="number" onChange={handleMaxTotalChange} />
+                        </div>
+                        <div>
+                            <label htmlFor="status" style={{marginRight: "0.25em"}}>Status:</label>
+                                <select id="status" name="status" onChange={handleStatusChange} >
+                                <option value="all">-----</option>
+                                <option value="authorized">Authorized</option>
+                                <option value="shipped">Shipped</option>
+                            </select>
+                        </div>
+                    </div>
+                    <br/>
                     <table className='info-table'>
                         <thead>
                             <th>Order ID</th>
@@ -366,7 +421,7 @@ function Administration() {
                             <th></th>
                         </thead>
                         <tbody>
-                            {orders.map((o) => (
+                            {filteredOrders.map((o) => (
                                 <tr key={o.id}>
                                     <td>{o.id}</td>
                                     <td>{o.status}</td>

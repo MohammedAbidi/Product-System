@@ -2,59 +2,66 @@ import React, { useEffect, useState } from 'react';
 import ReactDOM from "react-dom";
 import './ReceivingTable.css'
 
-const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
-// const WEBSITE = "http://localhost:5000";
+//const WEBSITE = "https://cumbersome-mountainous-jackfruit.glitch.me/";
+const WEBSITE = "http://localhost:5000";
 
 function DataTable() {
     const [data, setData] = useState([]);
     const [available, setAvailable] = useState({});
     const [loading, setLoading] = useState(true);
 
-    useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await fetch(WEBSITE + '/api/shop/quantities');
+    const fetchAvailable = async () => {
+        try {
+            const response = await fetch(WEBSITE + '/api/shop/quantities');
+            if (response.ok) {
                 const result = await response.json();
                 setAvailable(result);
-            } catch (error) {
-                console.error('Error fetching data: ', error);
-            } finally {
-                setLoading(false);
+            } else {
+                console.error("Failed to fetch available quantities:", response.statusText);
             }
-        };
+        } catch (error) {
+            console.error('Error fetching data: ', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
-        fetchData();
-    }, []);
+    const fetchData = async () => {
+        try {
+            const response = await fetch(WEBSITE + '/api/shop/items');
+            const result = await response.json();
+            setData(result);
+        } catch (error) {
+            console.error('Error fetching data: ', error);
+        } finally {
+            setLoading(false);
+        }
+    };
 
     useEffect(() => {
-        const fetchData = async () => {
-            try {
-                const response = await fetch(WEBSITE + '/api/shop/items');
-                const result = await response.json();
-                setData(result);
-            } catch (error) {
-                console.error('Error fetching data: ', error);
-            } finally {
-                setLoading(false);
-            }
-        };
-
         fetchData();
+        fetchAvailable();
     }, []);
 
     if (loading) {
         return <p>Loading...</p>;
     }
 
+    function handleAddQuantity(item) {
+        addQuantity(item);
+
+        document.getElementById("quantity" + item.number).value = "";
+    }
+
     async function addQuantity(item) {
-        const input = document.getElementById("quantity" + item.number);
+        var input = document.getElementById("quantity" + item.number);
+        const inputValue = Number(input.value.trim());
 
         // Only take care of adding additional items to cart if the quantity is greater than zero
-        if (input.value !== "" || inputValue > 0) {
-            var inputValue = Number(input.value.trim());
-            let oldQtyValue = available[item.number];
-            let newQtyValue = oldQtyValue + inputValue;
-            console.log(newQtyValue);
+        if (input.value !== "" && inputValue > 0) {
+            //var inputValue = Number(input.value.trim());
+            const oldQtyValue = available[item.number] || 0;
+            const newQtyValue = oldQtyValue + inputValue;
 
             const payload = {
                 id: item.number,
@@ -69,12 +76,26 @@ function DataTable() {
                     },
                     body: JSON.stringify(payload),
                 });
+
+                if (response.ok) {
+                    console.log("Quantity updated successfully");
+
+                    // Allow time for the backend to update before refreshing
+                    setTimeout(() => refreshData(), 100); // 100ms delay
+                } else {
+                    console.error('Failed to update quantity:', response.statusText);
+                }
             } catch (error) {
                 console.error('Error sending request:', error);
             }
 
             input.value = "";
         }
+    }
+
+    function refreshData() {
+        fetchData();
+        fetchAvailable();
     }
 
     return (
@@ -84,8 +105,7 @@ function DataTable() {
                 <table id='products'>
                     <thead>
                         <tr>
-                            <th>Number</th>
-                            <th>PictureURL</th>
+                            <th></th>
                             <th>Description</th>
                             <th>Price</th>
                             <th>Weight</th>
@@ -95,9 +115,6 @@ function DataTable() {
                     <tbody>
                         {data.map((item) => (
                             <tr key={item.number}>
-                                <td>
-                                    {item.number}
-                                </td>
                                 <td>
                                     <img src={item.pictureURL} alt={item.description} />
                                 </td>
@@ -111,7 +128,7 @@ function DataTable() {
                                         <input id={"quantity" + item.number} type="number" min="0" placeholder="0" style={{ display: "inline-flex", width: "5em" }} />
                                     </div>  
                                 </td>
-                                <td><button type='button' onClick={() => addQuantity(item)} >Add Quantity</button></td>
+                                <td><button type='button' onClick={() => handleAddQuantity(item)} >Add Quantity</button></td>
                             </tr>
                         ))}
                     </tbody>
