@@ -170,7 +170,8 @@ const dbController = {
                 // if payment failed - the send() message won't show either way so maybe remove that
                 //res.status(402).send( {"status" : "DECLINED"} )
                 console.log("Credit Card Transaction failed", data.errors);
-                throw data.errors[0];
+                res.status(402).send({"status":"DECLINED"}); // only for testing purposes for the Dialog window in frontend
+                return data.errors[0];
             } else {
                 // Commit Changes ONLY if credit card transaction was successful
                 await client.query("COMMIT")
@@ -185,7 +186,7 @@ const dbController = {
         } catch (err) {
             await client.query("ROLLBACK"); // Undo
             console.error("Transaction error, reverting any database changes: ", err);
-            res.status(402).send({"status":"DECLINED"}); // only for testing purposes for the Dialog window in frontend
+            res.status(500).send(); // Idk what happened
             throw err;
 
         } finally {
@@ -326,12 +327,28 @@ const dbController = {
 
     // Adding and updating rows in brackets table for new ranges
     post_admin_add_bracket: async (req, res) => {
-        console.log("TODO: Adding and updating rows in brackets table for new ranges");
+        const data = req.body; // {weight: 3.23, price: 47.23}
+
+        const rows_affected = await get_query(` INSERT INTO shipping (weight, price) VALUES (${data.weight}, ${data.price});`);
+        if (rows_affected) {
+            console.log(`Server: Added a new bracket of ${data}`);
+            res.status(200).send();
+        } else {
+            res.status(500).send({ error: `Failed adding shipping bracket ${data}` });
+        }
     },
 
     // Removing and updating rows in brackets table for new ranges
     post_admin_remove_bracket: async (req, res) => {
-        console.log("TODO: Removing and updating rows in brackets table for new ranges");
+        const data = req.body; // {id: 3.23}
+
+        const rows_affected = await get_query(`DELETE FROM shipping WHERE weight = ${data.id};`);
+        if (rows_affected) {
+            console.log(`Server: Removed bracket of weight ${data.id}`);
+            res.status(200).send();
+        } else {
+            res.status(500).send({ error: `Failed deleting shipping bracket: ${data}` });
+        }
     },
 }
 
