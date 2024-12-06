@@ -1,13 +1,22 @@
 // Imports
 require('dotenv').config()
-// process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"; // for testing locally (delete when pushing, npm start)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0"; // for testing locally (delete when pushing, npm start)
 
 const express = require("express")
 const cors = require("cors");
 
 const app = express()
-app.use(cors());
 app.use(express.json())
+app.use(cors());
+app.use(function(req, res, next) {
+    res.header("Access-Control-Allow-Origin", "*");
+    res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+    next();
+});
+
+// Api
+const dbRouter = require('./routes/db.router')
+app.use("/api", dbRouter)
 
 
 // LEGACY (mariadb): Sending the parts (excluding the available quantity) from the legacy DB
@@ -40,11 +49,6 @@ app.get("/api/shop/items", async (req, res) => {
 });
 
 
-// Api
-const dbRouter = require('./routes/db.router')
-app.use("/api", dbRouter)
-
-
 // Server Main Page (debug info)
 const pg = require("pg")
 const pool = new pg.Pool({
@@ -68,7 +72,6 @@ async function get_query(sql) {
         client.release();
     }
 }
-
 app.get("/", async (req, res) => {
 //  res.writeHead(200, { 'Content-Type': 'text/plain' });
 //  res.end('Hello World!\n');
