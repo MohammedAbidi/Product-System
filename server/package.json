@@ -1,5 +1,5 @@
 {
-	"description": "npm install node mariadb cors express pg",
+	"description": "npm install node mariadb cors express pg dotenv",
 	"name": "server",
 	"version": "1.0.0",
 	"main": "server.js",
@@ -11,6 +11,7 @@
 	"license": "ISC",
 	"dependencies": {
 		"cors": "^2.8.5",
+		"dotenv": "^16.4.7",
 		"express": "^4.21.2",
 		"mariadb": "^3.4.0",
 		"node": "^22.12.0",
